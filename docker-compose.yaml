@@ -1,39 +1,44 @@
-postgres:
-    image: postgres
-    restart: always
-    volumes:
-      - postgres_data:/var/lib/postgresql/keycloakdata
-    environment:
-      POSTGRES_DB: keycl0ak
-      POSTGRES_USER: keycl0ak
-      POSTGRES_PASSWORD: password
-    ports:
-      - 5431:5431
-
-  keycloak:
-    build:
-      context: services/keycloak
-    volumes:
-      - ./imports:/opt/jboss/keycloak/imports
-    command: 
-      - "-b 0.0.0.0 -Dkeycloak.import=/opt/jboss/keycloak/imports/realm-export.json"
-    environment:
-      DB_VENDOR: POSTGRES
-      DB_ADDR: postgres
-      DB_DATABASE: keycl0ak
-      DB_USER: keycl0ak
-      DB_PASSWORD: password
-      KEYCLOAK_USER: admin
-      KEYCLOAK_PASSWORD: asc88a8c0ssssqs
-    ports:
-      - 8080:8080
-    depends_on:
-      - postgres
+version: '3'
 
 volumes:
-    postgres_data:
+  mysql_data:
       driver: local
+
 networks:
-  default:
-    # Use a custom driver
-    driver: smilecdr_default
+  smilecdr_default:
+    driver: bridge
+
+services:
+  mysql:
+      image: mysql:5.7
+      volumes:
+        - mysql_data:/var/lib/mysql
+      environment:
+        MYSQL_ROOT_PASSWORD: root
+        MYSQL_DATABASE: keycloak
+        MYSQL_USER: keycloak
+        MYSQL_PASSWORD: password
+  keycloak:
+      image: quay.io/keycloak/keycloak:legacy
+      volumes:
+        - ./imports:/opt/jboss/keycloak/imports
+        - $PWD/server.crt.pem:/opt/keycloak/conf/server.crt.pem
+        - $PWD/server.key.pem:/opt/keycloak/conf/server.key.pem
+      # command: 
+      #   - "-b 0.0.0.0 -Dkeycloak.import=/opt/jboss/keycloak/imports/realm-export.json"
+      environment:
+        DB_VENDOR: MYSQL
+        DB_ADDR: mysql
+        DB_DATABASE: keycloak
+        DB_USER: keycloak
+        DB_PASSWORD: password
+        KEYCLOAK_USER: admin
+        KEYCLOAK_PASSWORD: Pa55w0rd
+        KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/server.crt.pem
+        KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/server.key.pem
+        # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the MySQL JDBC driver documentation in order to use it.
+        #JDBC_PARAMS: "connectTimeout=30000"
+      ports:
+        - 8080:8080
+      depends_on:
+        - mysql
